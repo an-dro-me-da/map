@@ -19,7 +19,7 @@
         const radius = parseInt(urlParams.get('radius'));
 
         const map = L.map('map', {
-            minZoom: 2,
+            minZoom: 3,
             maxBounds: [
                 [-90, -180],
                 [90, 180]
@@ -55,19 +55,19 @@
 
         bounds.extend([lat, lon]);
 
-        const fetchNominatimData = async (lat, lon) => {
-            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
-            try {
-                const response = await fetch(nominatimUrl);
-                const data = await response.json();
-                return {
-                    name: data.address.name || data.display_name || "Unknown",
-                    address: data.display_name || "Unknown address"
-                };
-            } catch (error) {
-                console.error("Error fetching Nominatim data:", error);
-                return { name: "Unknown", address: "Unknown address" };
-            }
+        const fetchNominatimData = (lat, lon) => {
+            return fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`)
+                .then(response => response.json())
+                .then(data => {
+                    return {
+                        name: data.name || "Unknown Name",
+                        display_name: data.display_name || "Unknown Address"
+                    };
+                })
+                .catch(err => {
+                    console.error('Error fetching Nominatim data:', err);
+                    return { name: "Unknown", display_name: "Unknown" };
+                });
         };
 
         const fetchData = (type, value, color) => {
@@ -76,17 +76,17 @@
 
                 fetch(overpassUrl)
                     .then(response => response.json())
-                    .then(data => {
-                        data.elements.forEach(async element => {
+                    .then(async (data) => {
+                        for (const element of data.elements) {
                             const { lat, lon } = element;
                             const placeData = await fetchNominatimData(lat, lon);
 
                             L.circleMarker([lat, lon], createCircleMarker(color))
                                 .addTo(map)
-                                .bindPopup(`<b>${placeData.name}</b><br>${placeData.address}`);
+                                .bindPopup(`<b>${placeData.name}</b><br>${placeData.display_name}`);
 
                             bounds.extend([lat, lon]);
-                        });
+                        }
 
                         map.fitBounds(bounds, { padding: [20, 20] });
                     })
