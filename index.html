@@ -1,4 +1,4 @@
-<!DOCTYPE html>  
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -67,11 +67,22 @@
                             const name = tags["name:en"] || tags.name || tags.operator || tags.brand || "";
                             const address = tags["addr:full"] || tags["addr:housename"] || tags["addr:street"] || "";
 
-                            L.circleMarker([lat, lon], createCircleMarker(color))
-                                .addTo(map)
-                                .bindPopup(`<b>${name}</b><br>${address}`);
+                            // Use Nominatim API to get the name and address
+                            const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
 
-                            bounds.extend([lat, lon]);
+                            fetch(nominatimUrl)
+                                .then(response => response.json())
+                                .then(nominatimData => {
+                                    const displayName = nominatimData.name || name;
+                                    const displayAddress = nominatimData.display_name || address;
+
+                                    L.circleMarker([lat, lon], createCircleMarker(color))
+                                        .addTo(map)
+                                        .bindPopup(`<b>${displayName}</b><br>${displayAddress}`);
+
+                                    bounds.extend([lat, lon]);
+                                })
+                                .catch(err => console.error('Error fetching Nominatim data:', err));
                         });
 
                         map.fitBounds(bounds, { padding: [20, 20] });
