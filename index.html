@@ -56,7 +56,7 @@
         bounds.extend([lat, lon]);
 
         const fetchNominatimData = (lat, lon) => {
-            return fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`)
+            return fetch(`https://nominatim.openstreetmap.de/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`)
                 .then(response => response.json())
                 .then(data => {
                     return {
