@@ -56,46 +56,58 @@
         bounds.extend([lat, lon]);
 
         const fetchNominatimData = (lat, lon) => {
-            return fetch(`https://nominatim.openstreetmap.de/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`)
+            return fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`)
                 .then(response => response.json())
-                .then(data => {
-                    return {
-                        name: data.name || "Unknown Name",
-                        display_name: data.display_name || "Unknown Address"
-                    };
-                })
-                .catch(err => {
-                    console.error('Error fetching Nominatim data:', err);
-                    return { name: "Unknown", display_name: "Unknown" };
-                });
+                .then(data => ({
+                    name: data.name || "Unknown Name",
+                    display_name: data.display_name || "Unknown Address"
+                }))
+                .catch(() => ({
+                    name: "Unknown",
+                    display_name: "Unknown"
+                }));
         };
 
         const fetchData = (type, value, color) => {
-            if (value) {
-                const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node["${type}"="${value}"](around:${radius},${lat},${lon});out;`;
+            if (!value) return Promise.resolve();
+            
+            const query = `
+                [out:json];
+                (
+                    node["${type}"="${value}"](around:${radius},${lat},${lon});
+                    way["${type}"="${value}"](around:${radius},${lat},${lon});
+                    relation["${type}"="${value}"](around:${radius},${lat},${lon});
+                );
+                out center;
+            `.replace(/\s+/g, ' ').trim();
+            
+            const encodedQuery = encodeURIComponent(query);
+            const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodedQuery}`;
 
-                fetch(overpassUrl)
-                    .then(response => response.json())
-                    .then(async (data) => {
-                        for (const element of data.elements) {
-                            const { lat, lon } = element;
-                            const placeData = await fetchNominatimData(lat, lon);
-
-                            L.circleMarker([lat, lon], createCircleMarker(color))
-                                .addTo(map)
-                                .bindPopup(`<b>${placeData.name}</b><br>${placeData.display_name}`);
-
-                            bounds.extend([lat, lon]);
-                        }
-
-                        map.fitBounds(bounds, { padding: [20, 20] });
-                    })
-                    .catch(err => console.error(`Error fetching ${type} data:`, err));
-            }
+            return fetch(overpassUrl)
+                .then(response => response.json())
+                .then(async (data) => {
+                    const elements = data.elements || [];
+                    for (const element of elements) {
+                        const { lat, lon } = element;
+                        const placeData = await fetchNominatimData(lat, lon);
+                        L.circleMarker([lat, lon], createCircleMarker(color))
+                            .addTo(map)
+                            .bindPopup(`<b>${placeData.name}</b><br>${placeData.display_name}`);
+                        bounds.extend([lat, lon]);
+                    }
+                })
+                .catch(err => console.error(`Error fetching ${type} data:`, err));
         };
 
-        fetchData("amenity", amenity, '#008000');
-        fetchData("shop", shop, '#008000');
+        Promise.all([
+            fetchData("amenity", amenity, '#008000'),
+            fetchData("shop", shop, '#FF0000') // Different color for shops
+        ]).then(() => {
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: [20, 20] });
+            }
+        });
     </script>
 </body>
 </html>
