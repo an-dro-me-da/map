@@ -102,7 +102,7 @@
 
         Promise.all([
             fetchData("amenity", amenity, '#008000'),
-            fetchData("shop", shop, '#FF0000') // Different color for shops
+            fetchData("shop", shop, '#008000') // Different color for shops
         ]).then(() => {
             if (!bounds.isEmpty()) {
                 map.fitBounds(bounds, { padding: [20, 20] });
